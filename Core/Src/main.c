@@ -26,7 +26,7 @@
  *  Para la generacion de la señal PWM se emplea en Timer1.
  *  la senal PWM es tiene una frecuencia de 10.33 KHz y 11 bits de resolucion
  *  el reloj del uC esta trabajando a 170 MHz
- *  Este programa corre dentro de la plataforma CUbe IDE de ST.
+ *  Este programa corre dentro de la plataforma Cube IDE de ST.
  *  Para la generacion del algoritmo de calculo de la duracion de los pulsos
  *  se emplea la  libreria CMSIS DSP sobre el microcontrolador STM32G474RE.
  *  por problemas de interferencia entre los canales 1 y 2 de las salidas PWM
@@ -182,11 +182,12 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 
 	if(f == 0) // si la frecuencia de entrada  es cero  que no se active las señales PWM de ningun canal
 	{
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);// PWM1 apagado
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);// PWM3 apagado
 	}
 
 }
+
 
 /* USER CODE END 4 */
 
