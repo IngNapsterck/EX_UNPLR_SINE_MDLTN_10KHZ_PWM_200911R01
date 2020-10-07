@@ -69,7 +69,7 @@
 
 #define pi 3.1415926 // se define el valor de Pi en este programa
 #define step 2.4		// se asignan los pasos de cambio de frecuencia
-
+#define speed 3
 
 
 
@@ -77,9 +77,11 @@
 float32_t w, f, sine_step = 0; //variables para almacenar los valores de la frecuencia en radianes y el valor del PWM
 uint16_t counter = 0;		   // contador para saber cuanto desplazar el valor de X de la senoidal de 0 a 2pi
 uint16_t pwm_sine1, pwm_sine2 = 0;// valores a cargar en los PWM para el sigeuinte disparo de PWM 1 y 3
-float32_t atenuacion = 0; // variable de crecimiento de amplitud de la senoidal de salida
+float32_t atenuacion, sine_full = 0; // variable de crecimiento de amplitud de la senoidal de salida
 
+uint8_t sinecounter = 0; // variable de conteo de cuantas senoidales se han completado
 _Bool ON = 0;// variable de encendido de rampa
+_Bool sine_on = 0; //variable de cruce por cero
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -179,7 +181,44 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 	pwm_sine2 = (uint16_t) (2046 / 2) * ( arm_sin_f32( (counter * sine_step) + pi ) + 1 );// se calcula el valor de la señal senoidal con desafase
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, (pwm_sine2 * atenuacion));// se carga el nuevo valor de la señal seno en el registro PWM para su activacion.
 
+	if ((f < 60) & (ON == SET))
+	{
+		sine_full = 10333/f;
+		sinecounter = (uint8_t)( counter/sine_full );
+		if(sinecounter == speed)//8 segundos de rampa
+		{
+			counter = 0;
+			f++;
+			atenuacion = atenuacion + 0.01667;
+			if(f >=60)
+			{
+				f = 60;
+				atenuacion = 1;
+			}
+		}
+	}
+
+
+	if (ON == RESET)
+	{
+		sine_full = 10333/f;
+		sinecounter = (uint8_t)( counter/sine_full );
+		if(sinecounter == speed)//8 segundos de rampa
+		{
+			counter = 0;
+			f--;
+			atenuacion = atenuacion - 0.01667;
+			if(f <= 12)
+			{
+				f = 0;
+				atenuacion = 0;
+				HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, RESET); // señal de que debemos apagar DC Link
+			}
+		}
+	}
+
 	counter++; // se salta un paso para que la siguiente interrupcion se valcule un nuevo valor de la senoidal
+//	variables de reinicio y apagado del PWM
 	if(counter > 10333)
 	{
 		counter = 0;// si la señal senoidal ha terminado de formarse se reinicia el valor de x para comenzar de nuevo a armar la senoidal
@@ -193,51 +232,6 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 
 }
 
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-//	bandera de señalizacio para saber cuando entra la interrupcion
-	HAL_GPIO_WritePin(FLAG_GPIO_Port, FLAG_Pin, SET);
-	HAL_GPIO_WritePin(FLAG_GPIO_Port, FLAG_Pin, RESET);
-
-	//rutina para el cambio de la freucuecia en la rampa
-	if (ON == SET)
-	{
-//		generamos la rampa de frecuencia y voltaje en ascenso (proceso de encendido)
-
-		f = f + step ;// incrementamos los valores de la frencuencia 2.4 Hz.
-		if(f >= 60)
-		{
-			f = 60; // si f alcanza una frecuencia de 60 Hz quedate en una frecuencia de 60 Hz
-		}
-
-		atenuacion = atenuacion + 0.04; // incrementamos los valores de la amplitud 4%.
-		if(atenuacion >= 1)
-		{
-			atenuacion = 1; //la magnitud maxima a alcanzar es de 100%
-		}
-
-	}
-	else
-	{
-//		generamos la rampa de frecuencia y voltaje en descenso (proceso de apagado)
-		f = f - step ;// incrementamos los valores de la frencuencia 10 Hz.
-		if(f <= 12)
-		{
-			f = 0; // si f alcanza una frecuencia de 120 Hz regresa a una frecuencia de 0 Hz
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, RESET); // señal de que debemos apagar DC Link
-		}
-
-		atenuacion = atenuacion - 0.04; // reducimos los valores de la amplitud 4% en cada paso.
-		if(atenuacion <= 0.2)
-		{
-			atenuacion = 0; //la magnitud minima a alcanzar es de 20% y luego apagate
-		}
-
-	}
-
-
-}
 
 /* USER CODE END 4 */
 
